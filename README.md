@@ -15,8 +15,6 @@ What does it do?
 * The library converts this into playable audio
 * And a visual that shows the notes as they're being played.
 
-You can find it on GitHub: \<@TODO: Link \> 
-
 This is what it looks like.
 
 ![What PQ MIDI looks like, visually](pq_midi_what_it_looks_like.webp)
@@ -73,11 +71,11 @@ It can take these parameters. All of these are optional
 
 Here's an example of using the shortcode in a Hugo file.
 
-{{< highlight go >}}
-  {{</* midi tempo="120" time="4/4" strict="true" metronome="true" */>}}
-  ... your melody here ...
-  {{</* /midi */>}}
-{{< /highlight >}}
+```
+{{< midi tempo="120" time="4/4" strict="true" metronome="true" >}}
+... your melody here ...
+{{< /midi >}}
+```
 
 ## Syntax
 
@@ -126,11 +124,11 @@ The default is absolute. This is unconventional---you might like "traditional" b
 
 Here's an example of syntax and the result
 
-{{< highlight >}}
+```
 :C4/1 D4/2 A3/1 | A3/1 A3/1 C4/2 |
 :F2/4 | C3/4 |
 :A3/2 R/2 | G3/4 |
-{{< /highlight >}}
+```
 
 ![What the syntax given above will produce](pq_midi_inaction.webp)
 
@@ -167,10 +165,10 @@ This config can also change some more general properties.
   * `path` (string): path to where your audio files are saved (if you want to use a custom structure)
   * `metronomeVolume` (number): 0 to 100, how loud the metronome clicks should be
 
-{{< highlight javascript >}}
+```
 window.PQ_MIDI = {};
 PQ_MIDI.config = {
     font: { family: "Arial" },
     pitch: { emptyPitchesAround: 0 }
 }
-{{< /highlight >}}
+```
