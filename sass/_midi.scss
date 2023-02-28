@@ -1,0 +1,25 @@
+@use "modules/_globals.scss" as g;
+
+figure.midi-player {
+    margin: 0;
+    margin-bottom: 4.0em;
+}
+
+.midi-player-metadata {
+    @include g.flex-center();
+    gap: 1.0em;
+    font-family: g.$header-font;
+    font-size: 1.0em;
+}
+
+.midi-player-metadata > div {
+    opacity: 0.5;
+}
+
+.midi-button-play {
+    background-color: #eeb850;
+}
+
+.midi-parse-feedback {
+    color: red;
+}
