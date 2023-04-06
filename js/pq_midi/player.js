@@ -1,7 +1,11 @@
-if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
+import AudioBuffer from "./audioBuffer"
+import Config from "./config"
+import VisualConfig from "./visualConfig"
+import Visualizer from "./visualizer"
+import Parser from "./parser"
 
 // (MIDI) Player => play/stop/progress
-PQ_MIDI.Player = class {
+export default class Player {
     constructor(id, data, canvas, metadata) {
         this.id = id;
         this.metadata = metadata;
@@ -28,18 +32,18 @@ PQ_MIDI.Player = class {
             metronomeVolume: PQ_MIDI.config.audio.metronomeVolume || 66
         }
         
-        let config = new PQ_MIDI.Config(params);
+        let config = new Config(params);
         metadata.getElementsByClassName("midi-tempo-label")[0].innerHTML = config.getPrettyTempoBPM();
         
-        this.parser = new PQ_MIDI.Parser(midiData, config);
+        this.parser = new Parser(midiData, config);
         this.tracks = this.parser.getNotes();
         this.duration = this.parser.getDuration();
 
         const numTracks = this.tracks.length;
-        this.gain = PQ_MIDI.AUDIO_BUFFER.createGainNodes(numTracks);
+        this.gain = AudioBuffer.createGainNodes(numTracks);
 
-        const visualConfig = new PQ_MIDI.VisualConfig(PQ_MIDI.customConfig || {}, numTracks);
-        this.visualizer = new PQ_MIDI.Visualizer(canvas, this.parser, config, visualConfig);
+        const visualConfig = new VisualConfig(PQ_MIDI.customConfig || {}, numTracks);
+        this.visualizer = new Visualizer(canvas, this.parser, config, visualConfig);
 
         this.btn.addEventListener("click", this.toggle.bind(this));
 
@@ -53,7 +57,7 @@ PQ_MIDI.Player = class {
 
         this.enabled = false;
         this.feedbackLabel.innerHTML = "Downloading audio ...";
-        await PQ_MIDI.AUDIO_BUFFER.checkAndLoadResources(this.parser.getUniquePitches());
+        await AudioBuffer.checkAndLoadResources(this.parser.getUniquePitches());
         this.feedbackLabel.innerHTML = this.parser.feedback;
         this.enabled = true;
         if(this.playing) { this.stop(); }
@@ -128,7 +132,7 @@ PQ_MIDI.Player = class {
     playSound(id, note)
     {
         if(!note.useAudio) { return; }
-        const source = PQ_MIDI.AUDIO_BUFFER.playSound(id, note, this.gain[id]);        
+        const source = AudioBuffer.playSound(id, note, this.gain[id]);        
         this.audio.push(source);
     }
 };

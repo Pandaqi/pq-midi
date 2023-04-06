@@ -1,6 +1,4 @@
-if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
-
-PQ_MIDI.Note = class {
+export default class Note {
     constructor(pitch, timeStart, duration)
     {
         this.pitch = pitch;

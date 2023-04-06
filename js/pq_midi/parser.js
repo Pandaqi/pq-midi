@@ -1,7 +1,7 @@
-if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
+import Note from "./note"
 
 // (MIDI) Parser => given a string from the Markdown, turn it into tracks, pitches, duration, etc.
-PQ_MIDI.Parser = class {
+export default class Parser {
     constructor(midiData, config)
     {
         this.tracksParsed = [];
@@ -59,7 +59,7 @@ PQ_MIDI.Parser = class {
                 prevPitch = pitchConverted;
                 prevTime = timeConverted; 
 
-                const noteObj = new PQ_MIDI.Note(pitchConverted, runningTime, timeConverted);
+                const noteObj = new Note(pitchConverted, runningTime, timeConverted);
 
                 const customVolume = (noteParts.length > 2);
                 if(customVolume) { 
@@ -104,7 +104,7 @@ PQ_MIDI.Parser = class {
             const newMeasure = config.isStartOfMeasure(time);
             const volume = newMeasure ? baseVolume : 0.38*baseVolume;
             const pitch = "M";
-            const note = new PQ_MIDI.Note(pitch, time, secondsPerBeat);
+            const note = new Note(pitch, time, secondsPerBeat);
             note.setVolume(volume);
             note.setVisual(false);
             track.push(note);

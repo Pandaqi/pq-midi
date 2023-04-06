@@ -1,7 +1,5 @@
-if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
-
 // VisualConfig => holds general data about the visual side (calculated once, passed around as needed)
-PQ_MIDI.VisualConfig = class {
+export default class VisualConfig {
     constructor(params, numTracks)
     {
         this.colorOffset = Math.round(Math.random()*360);

@@ -1,6 +1,8 @@
-window.addEventListener('load', function () {
-    if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
+import Player from "./player"
 
+window.PQ_MIDI = {};
+
+window.addEventListener('load', function () {
     // add events to all midi players
     const players = [];
     const midiPlayers = document.getElementsByClassName("midi-player");
@@ -10,7 +12,7 @@ window.addEventListener('load', function () {
         const canvas = midiPlayers[i].getElementsByClassName("midi-canvas")[0];
         const metadata = midiPlayers[i].getElementsByClassName("midi-player-metadata")[0];
 
-        players.push(new PQ_MIDI.Player(i, data, canvas, metadata));
+        players.push(new Player(i, data, canvas, metadata));
     }
 })
 

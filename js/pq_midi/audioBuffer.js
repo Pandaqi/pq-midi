@@ -1,19 +1,21 @@
-if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
-
-PQ_MIDI.AudioLoader = class {
+const AudioLoader = class {
     constructor()
     {
         this.ctx = null;
         this.audioBuffer = {};
-        this.basePath = "/tutorials/midi/audio";
-
-        let useCustomPath = (PQ_MIDI.config && PQ_MIDI.config.audio)
-        if(useCustomPath)
-        {
-            this.basePath = PQ_MIDI.config.audio.path;
-            if(basePath.charAt(path.length-1) == "/") { basePath.slice(0, -1); }
-        }
         this.setupContext();
+    }
+
+    getFilePath()
+    {
+        let basePath = "/tutorials/midi/audio";
+
+        let useCustomPath = (PQ_MIDI.config && PQ_MIDI.config.audio && PQ_MIDI.config.audio.path)
+        if(!useCustomPath) { return basePath; }
+        
+        basePath = PQ_MIDI.config.audio.path;
+        if(basePath.charAt(basePath.length-1) == "/") { basePath.slice(0, -1); }
+        return basePath;
     }
 
     setupContext()
@@ -90,7 +92,7 @@ PQ_MIDI.AudioLoader = class {
     loadResource(pitch)
     {
         const urlPitch = pitch.replace("#", "p");
-        const file = this.basePath + "/" + urlPitch + ".ogg";
+        const file = this.getFilePath()  + "/" + urlPitch + ".ogg";
 
         const xhr = new XMLHttpRequest();
         xhr.open('GET', file, true);
@@ -103,7 +105,7 @@ PQ_MIDI.AudioLoader = class {
                 let notFound = this.response.byteLength <= 24;
                 if(notFound) { return; }
     
-                PQ_MIDI.AUDIO_BUFFER.getContext().decodeAudioData(
+                that.getContext().decodeAudioData(
                     this.response, 
                     function (b) { that.audioBuffer[pitch] = b; resolve(true); }, 
                     function (e) { console.warn(e); reject(false); }
@@ -139,5 +141,5 @@ PQ_MIDI.AudioLoader = class {
         return source;
     }
 }
-
-PQ_MIDI.AUDIO_BUFFER = new PQ_MIDI.AudioLoader();
+const a = new AudioLoader();
+export default a;

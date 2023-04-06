@@ -1,6 +1,4 @@
-if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
-
-PQ_MIDI.Visualizer = class {
+export default class Visualizer {
     constructor(canvas, parser, config, visualConfig)
     {
         this.canvas = canvas;

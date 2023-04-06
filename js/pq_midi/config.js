@@ -1,7 +1,5 @@
-if(!window.PQ_MIDI) { window.PQ_MIDI = {}; }
-
 // Config => holds general data about the audio (calculated once, passed around as needed)
-PQ_MIDI.Config = class {
+export default class Config {
     constructor(params = {})
     {
         this.pitchInput = "absolute";
