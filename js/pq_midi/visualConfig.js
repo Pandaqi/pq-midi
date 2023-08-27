@@ -1,9 +1,8 @@
 // VisualConfig => holds general data about the visual side (calculated once, passed around as needed)
 export default class VisualConfig {
-    constructor(params, numTracks)
+    constructor(params)
     {
         this.colorOffset = Math.round(Math.random()*360);
-        this.colorInterval = 360 / numTracks;
         
         for (var key in params) {
             if(!params[key]) { continue; }
@@ -37,10 +36,11 @@ export default class VisualConfig {
         };
         Object.assign(this.time, params.time || {})
     }
-
-    getTrackColor(trackNum, change = 0)
+    
+    getTrackColor(trackNum, change = 0, numTracks)
     {
-        const hue = (this.colorOffset + this.colorInterval * trackNum) % 360;
+        const colorInterval = 360.0 / numTracks;
+        const hue = (this.colorOffset + colorInterval * trackNum) % 360;
         const sat = 100;
         const brightness = 50 + change;
         const col = "hsl(" + hue + ", " + sat + "%, " + brightness + "%)";

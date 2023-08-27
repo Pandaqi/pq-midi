@@ -7,7 +7,6 @@ export default class Parser {
         this.tracksParsed = [];
         this.duration = 0;
         this.feedback = [];
-
         this.parse(midiData, config);
     }
 
@@ -18,7 +17,6 @@ export default class Parser {
         // removes all sorts of stupid whitespace that might enter the string
         midiData = midiData.replace((/  |\r\n|\n|\r/gm),"");
 
-        const secondsPerBeat = config.getSecondsPerBeat();
         const tracks = midiData.split(":");
 
         for(const [id, track] of Object.entries(tracks))
@@ -79,85 +77,32 @@ export default class Parser {
             this.tracksParsed.push(trackParsed);
         }
 
-        if(config.useMetronome())
-        {
-            this.addMetronomeTrack(config);
-        }
-
         if(!config.areTracksAligned(this.tracksParsed))
         {
             this.addFeedback("Error! Tracks have different lengths.");
         }
+
+        this.duration = this.getDuration();
     }
 
-    addMetronomeTrack(config)
-    {
-        let track = [];
-        let duration = this.getDuration();
-        let secondsPerBeat = config.getSecondsPerBeat();
-
-        let baseVolume = config.metronomeVolume;
-
-        let time = 0;
-        while((time+secondsPerBeat-0.01) < duration)
-        {
-            const newMeasure = config.isStartOfMeasure(time);
-            const volume = newMeasure ? baseVolume : 0.38*baseVolume;
-            const pitch = "M";
-            const note = new Note(pitch, time, secondsPerBeat);
-            note.setVolume(volume);
-            note.setVisual(false);
-            track.push(note);
-            time += secondsPerBeat;
-        }
-
-        this.tracksParsed.push(track);
-    }
-
+    getFeedback() { return this.feedback; }
     addFeedback(txt)
     {
         this.feedback.push(txt);
     }
 
-    getNotes()
-    {
-        return this.tracksParsed;
-    }
-
-    getUniquePitches()
-    {
-        let pitches = new Set();
+    getNotesCopy() {
+        const tracksCopy = [];
         for(const track of this.tracksParsed)
         {
+            const trackCopy = [];
             for(const note of track)
             {
-                if(!note.useAudio) { continue; }
-                pitches.add(note.pitch);
+                trackCopy.push(note.clone());
             }
+            tracksCopy.push(trackCopy);
         }
-        return Array.from(pitches);
-    }
-
-    getPitches(margin = 0, config)
-    {
-        let lowestPitch = Infinity;
-        let highestPitch = -1;
-
-        for(const track of this.tracksParsed)
-        {
-            for(const note of track)
-            {
-                let idx = config.getNoteIndex(note.pitch);
-                if(idx == -1) { continue; }
-                if(idx < lowestPitch) { lowestPitch = idx; }
-                if(idx > highestPitch) { highestPitch = idx; }
-            }
-        }
-
-        lowestPitch = config.clampNote(lowestPitch - margin);
-        highestPitch = config.clampNote(highestPitch + margin + 1);
-
-        return config.getAllNotes().slice(lowestPitch, highestPitch);
+        return tracksCopy;
     }
 
     getDuration()

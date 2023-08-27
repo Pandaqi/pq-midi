@@ -1,25 +1,92 @@
-@use "modules/_globals.scss" as g;
+@use "critical_modules/globals" as g;
 
 figure.midi-player {
     margin: 0;
     margin-bottom: 4.0em;
+
+    button {
+        font-family: g.$header-font;
+        padding: 1.0em;
+        border-radius: 0.25em;
+        font-weight: 900;
+        transition: transform 0.2s, filter 0.2s;
+
+        @include g.themed() {
+            background-color: g.t("midi-button-bg-color");
+        }
+
+        &:hover {
+            transform: scale(1.04);
+            filter: drop-shadow(0 0 2px black);
+        }
+    }
+
+    button[data-toggled=""]
+    {
+        background-color: gray;
+        font-weight: normal;
+        opacity: 0.75;
+    }
+
+    button[data-toggled="toggled"]
+    {
+        opacity: 1.0;
+        outline: 0.25em solid rgb(5, 82, 5);
+        filter: drop-shadow(0 0 3px black);
+    }
+
+    input {
+        font-family: g.$header-font;
+        font-size: 0.8em;
+        border-radius: 0.25em;
+        padding: 0.25em;
+        max-width: 4em;
+        
+        @include g.themed() {
+            color: g.t("def-bg-color");
+            background-color: g.t("transparent-bg-heavy");
+        }
+    }
+
+    input:invalid {
+        outline: 0.25em solid red;
+    }
+
+    .midi-input-with-label {
+        @include g.flex-center();
+        gap: 0.5em;
+    }
 }
 
 .midi-player-metadata {
     @include g.flex-center();
+    flex-wrap: wrap;
+
     gap: 1.0em;
     font-family: g.$header-font;
     font-size: 1.0em;
+
+    .midi-ui-buttons, .midi-ui-inputs, .midi-parse-feedback {
+        width: 100%;
+        @include g.flex-center();
+        flex-wrap: wrap;
+        gap: 1.0em;
+
+        span { 
+            opacity: 0.75; 
+            font-size: 0.8em;
+        }
+    }
 }
 
-.midi-player-metadata > div {
-    opacity: 0.5;
-}
-
-.midi-button-play {
-    background-color: #eeb850;
+.midi-canvas {
+    @include g.themed() {
+        background-color: g.t("midi-canvas-bg-color");
+    }
 }
 
 .midi-parse-feedback {
-    color: red;
+    @include g.themed() {
+        color: g.t("midi-error-color");
+    }
 }

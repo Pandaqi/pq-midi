@@ -1,26 +1,45 @@
+import Point from "./point"
+import TimelineData from "./timelineData"
+
 export default class Visualizer {
-    constructor(canvas, parser, config, visualConfig)
+    constructor(player, config, visualConfig)
     {
-        this.canvas = canvas;
+        this.player = player;
+        this.player.getContainer().addEventListener("refresh", (ev) => { this.refresh(); });
+
+        this.config = config;
         this.visualConfig = visualConfig;
         this.pitchGrid = {};
         this.timeGrid = {};
+        this.canvasBaseResolution = { width: 1920, height: 1080 };
 
-        this.setupGrid(parser, config);
-        this.refresh(parser);
+        this.createCanvas();
+        this.refresh();
     }
 
-    setupGrid(parser, config)
+    createCanvas()
+    {
+        const canv = document.createElement("canvas");
+        canv.width = this.canvasBaseResolution.width;
+        canv.height = this.canvasBaseResolution.height;
+        canv.classList.add("midi-canvas");
+        canv.style.width = "100%";
+
+        this.canvas = canv;
+        this.player.getContainer().appendChild(canv);
+    }
+
+    setupGrid()
     {
         const pitchMargin = this.visualConfig.pitch.emptyPitchesAround;
-        const pitches = parser.getPitches(pitchMargin, config).reverse();
+        const pitches = this.player.tracks.getPitches(pitchMargin, this.config).reverse();
 
         const numPitches = pitches.length;
-        const maxPitches = config.getAllNotes().length;
+        const maxPitches = this.config.getAllNotes().length;
         let desiredBarHeight = 60 - 25 * (numPitches/maxPitches);
         desiredBarHeight *= this.visualConfig.pitch.verticalScale;
 
-        this.canvas.height =  desiredBarHeight * numPitches;
+        this.canvas.height = desiredBarHeight * numPitches;
 
         this.pitchGrid = {
             pitches: pitches,
@@ -28,12 +47,14 @@ export default class Visualizer {
             barWidth: this.canvas.width
         }
 
-        const duration = parser.getDuration();
-        const secondsPerMeasure = config.getSecondsPerMeasure();
+        const duration = this.player.tracks.getDuration();
+        const secondsPerMeasure = this.config.getSecondsPerMeasure();
 
         this.timeGrid = {
+            duration: duration,
             barHeight: this.canvas.height,
-            subdivisions: config.getBeatsPerMeasure(),
+            subdivisions: this.config.getBeatsPerMeasure(),
+            snapResolution: this.config.getGridResolution(),
             pixelsPerSecond: (this.pitchGrid.barWidth / duration),
             numMeasures: (duration / secondsPerMeasure),
             secondsPerMeasure: secondsPerMeasure,
@@ -42,32 +63,105 @@ export default class Visualizer {
         this.timeGrid.pixelsPerMeasure = (this.pitchGrid.barWidth / this.timeGrid.numMeasures);
     }
 
-    refresh(parser, player = null)
+    refresh(refreshGrid = true)
     {
+        if(refreshGrid) { this.setupGrid(); }
+
         this.clearCanvas();
-        this.drawPitchGrid(parser);
-        this.drawTimeGrid(parser);
-        this.drawTracks(parser, player);
-        this.drawTimeCursor(player);
+        this.drawPitchGrid();
+        this.drawTimeGrid();
+        this.drawTracks();
+        this.drawTimeCursor();
     }
 
+    setGridResolution(val)
+    {
+        this.config.setGridResolution(val);
+        this.player.requestRefresh();
+    }
+
+    getCanvasResolution()
+    {
+        return { width: this.canvas.width, height: this.canvas.height };
+    }
+
+    convertPixelsToSeconds(pixels)
+    {
+        return pixels / this.timeGrid.pixelsPerSecond;
+    }
+
+    getTimelineDataFromCanvasPos(canvasPos)
+    {
+        const pitchIndex = Math.floor(canvasPos.y / this.pitchGrid.barHeight);
+        let pitch = this.pitchGrid.pitches[pitchIndex];
+        pitch = this.config.clampPitchToAvailableAudio(pitch);
+        const time = (canvasPos.x / this.pitchGrid.barWidth) * this.timeGrid.duration;
+        return new TimelineData(time, pitch);
+    }
+
+    getPosFromEvent(ev)
+    {
+        const p = new Point();
+        const offset = this.canvas.getBoundingClientRect();
+        p.move({ x: -offset.left, y: -offset.top });
+
+        if(ev.type == 'touchstart' || ev.type == 'touchmove' || ev.type == 'touchend' || ev.type == 'touchcancel')
+        {
+            var evt = (typeof ev.originalEvent === 'undefined') ? ev : ev.originalEvent;
+            var touch = evt.touches[0] || evt.changedTouches[0];
+            p.move({ x: touch.clientX, y: touch.clientY });
+        } else if (ev.type == 'mousedown' || ev.type == 'mouseup' || ev.type == 'mousemove' || ev.type == 'mouseover'|| ev.type == 'mouseout' || ev.type == 'mouseenter' || ev.type=='mouseleave' || ev.type=='auxclick' || ev.type=='contextmenu' ) {
+            p.move({ x: ev.clientX, y: ev.clientY });
+        } 
+        
+        const finalPos = this.convertRealPosToCanvasPos(p);
+        return finalPos;
+    }
+
+    convertRealPosToCanvasPos(realPos)
+    {
+        const displaySize = this.canvas.getBoundingClientRect();
+        const underlyingSize = this.getCanvasResolution();
+
+        const scaleVector = new Point().setXY(
+            underlyingSize.width / displaySize.width,
+            underlyingSize.height / displaySize.height
+        );
+
+        return realPos.clone().scale(scaleVector);
+    }
+
+    convertCanvasPosToRealPos(canvasPos)
+    {
+        const displaySize = this.canvas.getBoundingClientRect();
+        const underlyingSize = this.getCanvasResolution();
+
+        const scaleVector = new Point().setXY(
+            displaySize.width / underlyingSize.width,
+            displaySize.height / underlyingSize.height
+        );
+
+        return canvasPos.clone().scale(scaleVector);
+    }
+
+    getCanvas() { return this.canvas; }
     clearCanvas()
     {
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    drawTimeCursor(player = null)
+    drawTimeCursor()
     {
         const ctx = this.canvas.getContext('2d');
-        let curTime = player ? player.time : 0;
+        let curTime = this.player.time;
 
         let cursorWidth = this.visualConfig.time.cursorWidth;
         ctx.fillStyle = this.visualConfig.time.cursorColor;
         ctx.fillRect(curTime * this.timeGrid.pixelsPerSecond, 0, cursorWidth, this.canvas.height);
     }
 
-    drawPitchGrid(parser)
+    drawPitchGrid()
     {
         const ctx = this.canvas.getContext('2d');
         
@@ -87,7 +181,7 @@ export default class Visualizer {
         }
     }
 
-    drawTimeGrid(parser)
+    drawTimeGrid()
     {
         const ctx = this.canvas.getContext('2d');
         ctx.font = this.visualConfig.font.size + "px " + this.visualConfig.font.family;
@@ -96,11 +190,13 @@ export default class Visualizer {
         const textMarginX = this.visualConfig.time.textMargin;
         const textMarginY = this.visualConfig.font.size;
 
+        const subdiv = this.timeGrid.subdivisions * this.timeGrid.snapResolution;
+
         for(let i = 0; i < this.timeGrid.numMeasures; i++)
         {
-            for(let j = 0; j < this.timeGrid.subdivisions; j++)
+            for(let j = 0; j < subdiv; j++)
             {
-                let fraction = (j / this.timeGrid.subdivisions);
+                let fraction = (j / subdiv);
                 let x = (i + fraction)*this.timeGrid.pixelsPerMeasure;
                 
                 let width = this.visualConfig.time.lineWidth;
@@ -119,33 +215,41 @@ export default class Visualizer {
         }
     }
 
-    drawTracks(parser, player = null)
+    drawTracks()
     {
-        for(const [id, track] of Object.entries(parser.getNotes()))
+        const curTracks = this.player.tracks.read();
+        for(const [id, track] of Object.entries(curTracks))
         {
-            this.drawTrack(id, track, player);
+            this.drawTrack(id, track);
         }
     }
 
-    drawTrack(id, track, player = null)
+    drawTrack(id, track)
     {
         let ctx = this.canvas.getContext('2d');
 
         const barHeight = this.pitchGrid.barHeight;
         const pixelsPerSecond = this.timeGrid.pixelsPerSecond;
-        let curTime = player ? player.time : -1;
+        let curTime = this.player.time;
+        if(curTime <= 0.001) { curTime = -1; }
+
+        const numTracks = this.player.tracks.count();
+        const interactor = this.player.interactor;
         
         for(const note of track)
         {
             if(!note.useVisual) { continue; }
 
-            ctx.fillStyle = this.visualConfig.getTrackColor(id);
+            ctx.fillStyle = this.visualConfig.getTrackColor(id, 0, numTracks);
             ctx.shadowBlur = this.visualConfig.pitch.shadowSize;
             ctx.shadowColor = this.visualConfig.pitch.shadowColor;
 
-            let pitchIsActive = (note.timeStart <= curTime && note.timeEnd >= curTime);
-            if(pitchIsActive) { 
-                ctx.fillStyle = this.visualConfig.getTrackColor(id, 30);
+            const noteBeingPlayed = (note.timeStart <= curTime && note.timeEnd >= curTime);
+            const noteBeingEdited = interactor && interactor.isNoteSelected(note);
+
+            let noteIsActive = (noteBeingPlayed || noteBeingEdited);
+            if(noteIsActive) { 
+                ctx.fillStyle = this.visualConfig.getTrackColor(id, 30, numTracks);
                 ctx.shadowColor = "black";
             }
 
@@ -156,7 +260,7 @@ export default class Visualizer {
             ctx.fillRect(noteStart, y, barWidth, barHeight);
 
             ctx.lineWidth = 4;
-            ctx.strokeStyle = this.visualConfig.getTrackColor(id, -30);
+            ctx.strokeStyle = this.visualConfig.getTrackColor(id, -30, numTracks);
             ctx.strokeRect(noteStart, y, barWidth, barHeight);
         }
 

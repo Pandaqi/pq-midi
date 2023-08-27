@@ -1,10 +1,12 @@
 <figure class="midi-player no-hover">
-    {{- $caption := .Get "caption" }}
+    {{- $caption := or (.Get "caption") "" -}}
+    {{- with $caption -}}
     <figcaption class="side-note">
         <span>
             {{- $caption -}}
         </span>
     </figcaption>
+    {{- end -}}
     {{- $tempo := or (.Get "tempo") 120 -}}
     {{- $time := or (.Get "time") "4/4" -}}
     {{- $strict := or (.Get "strict") "" -}}
@@ -15,14 +17,4 @@
     <div class="midi-data" data-tempo="{{ $tempo }}" data-time="{{ $time }}" data-strict="{{ $strict }}" data-pitchinput="{{ $pitch_input }}" data-timeinput="{{ $time_input }}" data-transpose="{{ $transpose }}" data-metronome="{{ $metronome }}" style="display:none;">
         {{- .Inner -}}
     </div>
-    <canvas class="midi-canvas" width="1920" height="1080" style="width:100%;">Your browser doesn't support canvas :(</canvas>
-    <aside class="midi-player-metadata">
-        {{- partial "button.html" (dict "context" . "buttonTag" true "content" "Play/Stop" "class" "midi-button-play") -}}
-        <div>Tempo: <span class="midi-tempo-label">{{ $tempo }}</span> BPM</div>
-        <div>Time: <span class="midi-time-signature-label">{{ $time }}</span></div>
-        {{- if ne $metronome "" -}}
-            <div>Metronome: <span class="midi-metronome-label">ON</span></div>
-        {{- end -}}
-        <div class="midi-parse-feedback"></div>
-    </aside>
 </figure>

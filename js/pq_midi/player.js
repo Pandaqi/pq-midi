@@ -3,76 +3,72 @@ import Config from "./config"
 import VisualConfig from "./visualConfig"
 import Visualizer from "./visualizer"
 import Parser from "./parser"
+import Interactor from "./interactor"
+import Tracks from "./tracks"
+import UI from "./ui"
+import Note from "./note"
 
 // (MIDI) Player => play/stop/progress
-export default class Player {
-    constructor(id, data, canvas, metadata) {
+export default class Player 
+{
+    constructor(id, node) 
+    {
         this.id = id;
-        this.metadata = metadata;
-        this.btn = metadata.getElementsByClassName("midi-button-play")[0];
+        this.node = node;
         
         this.enabled = true;
         this.playing = false;
         this.audio = [];
-        this.gain = [];
         this.time = 0;
+        this.prevTime = 0;
+        this.lastContextTime = 0;
 
         if(!PQ_MIDI.config) { PQ_MIDI.config = {} }
         if(!PQ_MIDI.config.audio) { PQ_MIDI.config.audio = {}; }
 
-        let midiData = data.innerHTML.trim();
-        let params = {
-            pitchInput: data.dataset.pitchinput,
-            timeInput: data.dataset.timeinput,
-            tempoBPM: parseInt(data.dataset.tempo), 
-            timeSignature: data.dataset.time, 
-            strict: data.dataset.strict,
-            transpose: parseInt(data.dataset.transpose),
-            metronome: data.dataset.metronome,
+        const dataNode = this.node.getElementsByClassName("midi-data")[0];
+        const midiData = dataNode.innerHTML.trim();
+        const params = {
+            pitchInput: dataNode.dataset.pitchinput,
+            timeInput: dataNode.dataset.timeinput,
+            tempoBPM: parseInt(dataNode.dataset.tempo), 
+            timeSignature: dataNode.dataset.time, 
+            strict: dataNode.dataset.strict,
+            transpose: parseInt(dataNode.dataset.transpose),
+            metronome: dataNode.dataset.metronome,
             metronomeVolume: PQ_MIDI.config.audio.metronomeVolume || 66
         }
-        
-        let config = new Config(params);
-        metadata.getElementsByClassName("midi-tempo-label")[0].innerHTML = config.getPrettyTempoBPM();
-        
-        this.parser = new Parser(midiData, config);
-        this.tracks = this.parser.getNotes();
-        this.duration = this.parser.getDuration();
+                
+        this.config = new Config(params);
+        this.parser = new Parser(midiData, this.config);
+        this.tracks = new Tracks(this, this.config);
+        this.tracks.readFromParser(this.parser);
 
-        const numTracks = this.tracks.length;
-        this.gain = AudioBuffer.createGainNodes(numTracks);
+        this.visualConfig = new VisualConfig(PQ_MIDI.customConfig || {});
+        this.visualizer = new Visualizer(this, this.config, this.visualConfig);
+        this.interactor = new Interactor(this.tracks, this.visualizer);
 
-        const visualConfig = new VisualConfig(PQ_MIDI.customConfig || {}, numTracks);
-        this.visualizer = new Visualizer(canvas, this.parser, config, visualConfig);
-
-        this.btn.addEventListener("click", this.toggle.bind(this));
-
-        this.feedbackLabel = metadata.getElementsByClassName("midi-parse-feedback")[0];
-        this.feedbackLabel.innerHTML = this.parser.feedback;
+        this.ui = new UI(this, this.config);
+        this.ui.setFeedback(this.parser.getFeedback());
+        this.ui.setPlayButtonCallback(this.toggle.bind(this));
     }
+
+    getContainer() { return this.node; }
 
     async toggle()
     {
         if(!this.enabled) { return; }
 
         this.enabled = false;
-        this.feedbackLabel.innerHTML = "Downloading audio ...";
-        await AudioBuffer.checkAndLoadResources(this.parser.getUniquePitches());
-        this.feedbackLabel.innerHTML = this.parser.feedback;
-        this.enabled = true;
-        if(this.playing) { this.stop(); }
-        else { this.play(); }
-    }
+        this.ui.setFeedback("Downloading audio ...");
 
-    cloneTracks()
-    {
-        const originalTracks = this.parser.getNotes();
+        await AudioBuffer.checkAndLoadResources(this.tracks.getUniquePitches());
         
-        this.tracks = [];
-        for(let i = 0; i < originalTracks.length; i++)
-        {
-            this.tracks.push(originalTracks[i].slice());
-        }
+        this.ui.setFeedback(this.parser.getFeedback());
+        this.enabled = true;
+        
+        if(this.playing) { return this.stop(); }
+        return this.play();
     }
 
     play()
@@ -80,26 +76,42 @@ export default class Player {
         this.playing = true;
         this.audio = [];
 
-        this.cloneTracks();
+        this.tracks.resetStateForAllNotes();
 
+        this.prevTime = this.time;
+        this.lastContextTime = this.getCurContextTime();
+        this.clickMetronome();
         this.onUpdate();
+
         window.requestAnimationFrame(this.progress.bind(this));
     }
 
-    progress()
+    getCurContextTime()
+    {
+        return AudioBuffer.getContext().currentTime;
+    }
+
+    async progress()
     {
         if(!this.playing) { return; }
-        
-        this.time += (1.0/60.0);
 
-        const finished = (this.time >= this.duration);
-        if(finished) { this.stop(); return; }
+        const curTime = this.getCurContextTime();
+        const timeElapsed = curTime - this.lastContextTime;
+        this.lastContextTime = curTime;
+        
+        this.prevTime = this.time;
+        this.time += timeElapsed;
+
+        const finished = (this.time >= this.tracks.getDuration());
+        if(finished) { this.stop(true); return; }
 
         this.onUpdate();
+
+        await AudioBuffer.checkAndLoadResources(this.tracks.getUniquePitches());
         window.requestAnimationFrame(this.progress.bind(this));
     }
 
-    stop()
+    stop(reachedEnd = false)
     {
         this.playing = false;
         this.time = 0;
@@ -108,31 +120,65 @@ export default class Player {
         {
             audio.stop();
         }
-        this.audio = [];
 
-        this.visualizer.refresh(this.parser, null);
+        this.audio = [];
+        this.requestRefresh();
+
+        if(reachedEnd && this.config.shouldLoop()) { this.play(); }
     }
 
     onUpdate()
     {
-        this.visualizer.refresh(this.parser, this);
+        this.requestRefresh();
 
-        for(const [id, track] of Object.entries(this.tracks))
+        const notesData = this.tracks.getNotesThatStartPlaying(this.time);
+        for(const noteData of notesData)
         {
-            if(track.length <= 0) { continue; }
-
-            const nextNote = track[0];
-            if(nextNote.timeStart > this.time) { continue; }
-
-            this.playSound(id, nextNote);
-            track.shift();
+            const note = noteData.note;
+            this.playSound(noteData.id, note);
+            note.setPlaying(true);
         }
+
+        const subDivisions = this.config.getGridSubdivisions();
+        const closestSubdivision = Math.round(this.time / subDivisions) * subDivisions;
+        const clickMetronome = (this.prevTime < closestSubdivision && this.time >= closestSubdivision);
+        if(clickMetronome) { this.clickMetronome(); }
     }
     
     playSound(id, note)
     {
         if(!note.useAudio) { return; }
-        const source = AudioBuffer.playSound(id, note, this.gain[id]);        
+        const source = AudioBuffer.playSound(id, note);        
         this.audio.push(source);
+    }
+
+    // @TODO: move this to Tracks or some more appropriate location?
+    clickMetronome()
+    {
+        if(!this.config.useMetronome()) { return; }
+
+        const subDivisions = this.config.getGridSubdivisions();
+        const timeSnapped = Math.round(this.time / subDivisions) * subDivisions;
+
+        let baseVolume = this.config.metronomeVolume;
+        const newMeasure = this.config.isStartOfMeasure(timeSnapped);
+        const volume = newMeasure ? baseVolume : 0.5*baseVolume;
+        const noteLength = 0.1;
+
+        const note = new Note("M", timeSnapped, noteLength);
+        note.setVolume(volume);
+        note.setVisual(false);
+        this.playSound(this.tracks.getMetronomeChannel(), note);
+    }
+
+    clear()
+    {
+        this.tracks.clear();
+    }
+
+    requestRefresh()
+    {
+        const ev = new CustomEvent("refresh");
+        this.node.dispatchEvent(ev);
     }
 };

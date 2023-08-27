@@ -9,7 +9,17 @@ export default class Config {
         this.strict = false;
         this.transpose = 0;
         this.metronome = false;
-        this.metronomeVolume = 66;
+        this.metronomeVolume = 85;
+        this.loop = false;
+        this.snapToGrid = true;
+        this.gridResolution = 1;
+
+        this.MEASURE_BOUNDS = { min: 1, max: 6 };
+        this.BPM_BOUNDS = { min: 10, max: 300 };
+        this.MIN_PITCH_SPREAD = 5;
+        this.GRID_RESOLUTION_BOUNDS = { min: 1, max: 8 };
+        this.AUDIO_BOUNDS = { min: "C2", max: "C6" };
+        this.NUM_TRACKS_BOUNDS = { min: 1, max: 8 };
 
         for (var key in params) {
             if(!params[key]) { continue; }
@@ -17,6 +27,7 @@ export default class Config {
         }
 
         this.generateNotes();
+        this.generateNotesWithAvailableAudio();
     }
 
     // Generate list of all notes (I'm lazy)
@@ -36,9 +47,24 @@ export default class Config {
         }
     }
 
-    getAllNotes()
+    generateNotesWithAvailableAudio()
     {
-        return this.allNotes;
+        const lowestAudio = this.allNotes.indexOf(this.AUDIO_BOUNDS.min);
+        const highestAudio = this.allNotes.indexOf(this.AUDIO_BOUNDS.max);
+        this.allNotesAudio = this.allNotes.slice(lowestAudio, highestAudio);
+    }
+
+    getAllNotesWithAvailableAudio() { return this.allNotesAudio; }
+    getAllNotes() { return this.allNotes; }
+
+    clampPitchToAvailableAudio(pitch)
+    {
+        if(this.getAllNotesWithAvailableAudio().includes(pitch)) { return pitch; }
+        
+        const pitchIndex = this.allNotes.indexOf(pitch);
+        const lowestAudio = this.allNotes.indexOf(this.AUDIO_BOUNDS.min);
+        if(pitchIndex <= lowestAudio) { return this.AUDIO_BOUNDS.min; }
+        return this.AUDIO_BOUNDS.max;
     }
 
     clampNote(noteIndex)
@@ -49,11 +75,6 @@ export default class Config {
     getNoteIndex(pitch)
     {
         return this.allNotes.indexOf(pitch);
-    }
-
-    useMetronome()
-    {
-        return this.metronome;
     }
 
     convertPitchInput(pitch, prevPitch)
@@ -120,6 +141,29 @@ export default class Config {
             return baseTime * fullNote;
         }
     }
+
+    isValidTimeSignature(val)
+    {
+        const split = val.split("/");
+        if(split.length != 2) { return false; }
+
+        const beatsPerMeasure = parseInt(split[0]);
+        if(isNaN(beatsPerMeasure)) { return false; }
+
+        const beatType = parseInt(split[1]);
+        if(isNaN(beatType)) { return false; }
+
+        return true;
+    }
+
+    getTimeSignature() { return this.timeSignature; }
+    setTimeSignature(val)
+    {
+        if(!this.isValidTimeSignature(val)) { return null; }
+        const changeData = null;
+        this.timeSignature = val;
+        return changeData;
+    }
     
     getPrettyTempoBPM()
     {
@@ -129,11 +173,21 @@ export default class Config {
         return Math.round(tempo);
     }
 
-    getTempoBPM()
+    getTempoBPM() { return this.tempoBPM; }
+    setTempoBPM(val)
     {
-        return this.tempoBPM;
+        if(isNaN(val)) { return; }
+        const valClamped = Math.max(Math.min(val, this.BPM_BOUNDS.max), this.BPM_BOUNDS.min);
+        const changeFactor = (this.tempoBPM / valClamped);
+        this.tempoBPM = valClamped;
+        return changeFactor;
     }
 
+    getGridSubdivisions()
+    {
+        return this.getSecondsPerBeat() * this.getGridResolution(); 
+    }
+    
     getSecondsPerBeat()
     {
         return 60.0 / this.tempoBPM;
@@ -186,5 +240,30 @@ export default class Config {
             lastLength = myLength
         }
         return true;
+    }
+
+    shouldLoop() { return this.loop; }
+    setLoop(l)
+    {
+        this.loop = l;
+    }
+
+    shouldSnap() { return this.snapToGrid; }
+    setSnap(s)
+    {
+        this.snapToGrid = s;
+    }
+
+    useMetronome() { return this.metronome; }
+    setMetronome(m)
+    {
+        this.metronome = m;
+    }
+
+    getGridResolution() { return this.gridResolution; }
+    setGridResolution(val) 
+    { 
+        const bounds = this.GRID_RESOLUTION_BOUNDS;
+        this.gridResolution = Math.min(Math.max(val, bounds.min), bounds.max);
     }
 }

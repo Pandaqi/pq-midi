@@ -3,6 +3,7 @@ const AudioLoader = class {
     {
         this.ctx = null;
         this.audioBuffer = {};
+        this.gainNodes = [];
         this.setupContext();
     }
 
@@ -49,18 +50,6 @@ const AudioLoader = class {
         return (pitch in this.audioBuffer);
     }
 
-    createGainNodes(num)
-    {
-        const arr = [];
-        for(let i = 0; i < num; i++)
-        {
-            const gainNode = this.ctx.createGain();
-            gainNode.connect(this.ctx.destination);
-            arr.push(gainNode);
-        }
-        return arr;
-    }
-
     checkAndLoadResources(pitches)
     {
         let promises = [];
@@ -76,13 +65,8 @@ const AudioLoader = class {
         const mustLoadSomething = promises.length > 0;
         if(mustLoadSomething)
         {
-            const delayPromise = new Promise(
-                resolve => {
-                    setTimeout(() => {
-                        resolve('resolved');
-                    }, 50);
-                }
-            );
+            const delayDurationMs = 50;
+            const delayPromise = new Promise(resolve => { setTimeout(() => { resolve('resolved'); }, delayDurationMs); });
             promises.push(delayPromise);
         }
 
@@ -116,10 +100,26 @@ const AudioLoader = class {
         });
     }
 
-    playSound(id, note, gainNode)
+    getGainNodeWithCreate(id)
+    {
+        if(id < 0) { return console.error("Can't play sound at track ", id); }
+        if(id < this.gainNodes.length) { return this.gainNodes[id]; }
+
+        while(this.gainNodes.length <= id)
+        {
+            const gainNode = this.ctx.createGain();
+            gainNode.connect(this.ctx.destination);
+            this.gainNodes.push(gainNode);
+        }
+
+        return this.gainNodes[id];
+    }
+
+    playSound(id, note)
     {
         if (this.ctx.state === "suspended") { this.ctx.resume(); }
 
+        const gainNode = this.getGainNodeWithCreate(id);
         var source = this.ctx.createBufferSource();
         source.buffer = this.getAudioForPitch(note.pitch);
 
@@ -136,10 +136,11 @@ const AudioLoader = class {
         // to prevent clicks and pops
         gainNode.gain.exponentialRampToValueAtTime(startVolume, curTime + 0.03);
         gainNode.gain.setValueAtTime(endVolume, stopTime - 0.03);
-        if(note.pitch != "M") { gainNode.gain.exponentialRampToValueAtTime(0.0001, stopTime); }
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, stopTime);
 
         return source;
     }
 }
+
 const a = new AudioLoader();
 export default a;
