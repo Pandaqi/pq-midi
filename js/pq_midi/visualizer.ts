@@ -1,8 +1,40 @@
+import Config from "./config";
+import Player from "./player";
 import Point from "./point"
 import TimelineData from "./timelineData"
+import { Track } from "./tracks";
+import VisualConfig from "./visualConfig";
 
-export default class Visualizer {
-    constructor(player, config, visualConfig)
+interface PitchGridParams
+{
+    pitches?: string[],
+    barHeight?: number,
+    barWidth?: number
+}
+
+interface TimeGridParams
+{
+    duration?: number,
+    barHeight?: number,
+    subdivisions?: number,
+    snapResolution?: number,
+    pixelsPerSecond?: number,
+    numMeasures?: number,
+    secondsPerMeasure?: number,
+    pixelsPerMeasure?: number
+}
+
+export default class Visualizer 
+{
+    player: Player;
+    config: Config;
+    visualConfig: VisualConfig;
+    pitchGrid: PitchGridParams;
+    timeGrid: TimeGridParams;
+    canvasBaseResolution: { width: number; height: number; };
+    canvas: HTMLCanvasElement;
+
+    constructor(player:Player, config:Config, visualConfig:VisualConfig)
     {
         this.player = player;
         this.player.getContainer().addEventListener("refresh", (ev) => { this.refresh(); });
@@ -74,7 +106,7 @@ export default class Visualizer {
         this.drawTimeCursor();
     }
 
-    setGridResolution(val)
+    setGridResolution(val:number)
     {
         this.config.setGridResolution(val);
         this.player.requestRefresh();
@@ -85,12 +117,12 @@ export default class Visualizer {
         return { width: this.canvas.width, height: this.canvas.height };
     }
 
-    convertPixelsToSeconds(pixels)
+    convertPixelsToSeconds(pixels:number)
     {
         return pixels / this.timeGrid.pixelsPerSecond;
     }
 
-    getTimelineDataFromCanvasPos(canvasPos)
+    getTimelineDataFromCanvasPos(canvasPos:Point)
     {
         const pitchIndex = Math.floor(canvasPos.y / this.pitchGrid.barHeight);
         let pitch = this.pitchGrid.pitches[pitchIndex];
@@ -103,22 +135,22 @@ export default class Visualizer {
     {
         const p = new Point();
         const offset = this.canvas.getBoundingClientRect();
-        p.move({ x: -offset.left, y: -offset.top });
+        p.move(new Point({ x: -offset.left, y: -offset.top }));
 
         if(ev.type == 'touchstart' || ev.type == 'touchmove' || ev.type == 'touchend' || ev.type == 'touchcancel')
         {
             var evt = (typeof ev.originalEvent === 'undefined') ? ev : ev.originalEvent;
             var touch = evt.touches[0] || evt.changedTouches[0];
-            p.move({ x: touch.clientX, y: touch.clientY });
+            p.move(new Point({ x: touch.clientX, y: touch.clientY }));
         } else if (ev.type == 'mousedown' || ev.type == 'mouseup' || ev.type == 'mousemove' || ev.type == 'mouseover'|| ev.type == 'mouseout' || ev.type == 'mouseenter' || ev.type=='mouseleave' || ev.type=='auxclick' || ev.type=='contextmenu' ) {
-            p.move({ x: ev.clientX, y: ev.clientY });
+            p.move(new Point({ x: ev.clientX, y: ev.clientY }));
         } 
         
         const finalPos = this.convertRealPosToCanvasPos(p);
         return finalPos;
     }
 
-    convertRealPosToCanvasPos(realPos)
+    convertRealPosToCanvasPos(realPos:Point)
     {
         const displaySize = this.canvas.getBoundingClientRect();
         const underlyingSize = this.getCanvasResolution();
@@ -131,7 +163,7 @@ export default class Visualizer {
         return realPos.clone().scale(scaleVector);
     }
 
-    convertCanvasPosToRealPos(canvasPos)
+    convertCanvasPosToRealPos(canvasPos:Point)
     {
         const displaySize = this.canvas.getBoundingClientRect();
         const underlyingSize = this.getCanvasResolution();
@@ -170,8 +202,11 @@ export default class Visualizer {
         let textMargin = this.visualConfig.pitch.textMargin;
         let fontSize = this.visualConfig.font.size;
 
-        for(const [i, pitch] of Object.entries(this.pitchGrid.pitches))
+        const allPitches : Record<number, string> = this.pitchGrid.pitches;
+
+        for(const [index, pitch] of Object.entries(allPitches))
         {
+            const i = parseInt(index);
             ctx.fillStyle = (i % 2 == 0) ? this.visualConfig.pitch.barLight : this.visualConfig.pitch.barDark;
             ctx.fillRect(0, i*barHeight, barWidth, barHeight);
 
@@ -220,11 +255,11 @@ export default class Visualizer {
         const curTracks = this.player.tracks.read();
         for(const [id, track] of Object.entries(curTracks))
         {
-            this.drawTrack(id, track);
+            this.drawTrack(parseInt(id), track);
         }
     }
 
-    drawTrack(id, track)
+    drawTrack(id:number, track:Track)
     {
         let ctx = this.canvas.getContext('2d');
 

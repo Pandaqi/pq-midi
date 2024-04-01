@@ -1,8 +1,22 @@
 import Note from "./note"
+import Point from "./point";
+import TimelineData from "./timelineData";
+import Tracks from "./tracks";
+import Visualizer from "./visualizer";
 
 export default class Interactor
 {
-    constructor(tracks, visualizer)
+    tracks: Tracks;
+    visualizer: Visualizer;
+    clicked: boolean;
+    lastClickPos: Point;
+    noteSelected: Note;
+    noteSelectedTimeOffset: number;
+    noteNewStart: number;
+    NOTE_EDGE_GRAB_THRESHOLD: number;
+    action: string;
+
+    constructor(tracks:Tracks, visualizer:Visualizer)
     {
         this.tracks = tracks;
         this.visualizer = visualizer;
@@ -57,7 +71,7 @@ export default class Interactor
         return note;
     }
 
-    createNewNoteFromTimelineData(data)
+    createNewNoteFromTimelineData(data:TimelineData)
     {
         const timeRaw = data.getTime();
         const timeSnapped = this.tracks.snapToTimeGrid(timeRaw);
@@ -170,15 +184,15 @@ export default class Interactor
         return false;
     }
 
-    isNoteSelected(note) { return this.noteSelected == note; }
+    isNoteSelected(note:Note) { return this.noteSelected == note; }
 
-    moveNote(note, timelineData, side = "both")
+    moveNote(note:Note, timelineData:TimelineData, side = "both")
     {
         if(!note) { return; }
         this.tracks.moveNoteTo(note, timelineData, side);
     }
 
-    removeNote(note)
+    removeNote(note:Note)
     {
         if(!note) { return;}
         this.tracks.removeNote(note);

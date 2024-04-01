@@ -1,15 +1,34 @@
+import Config from "./config";
 import Note from "./note"
+import Parser from "./parser";
+import Player from "./player";
+import TimelineData from "./timelineData";
 
+type Track = Note[];
+interface NoteData
+{
+    id?: number
+    note?: Note
+}
+
+export { Tracks, Track, NoteData }
 export default class Tracks
 {
-    constructor(player, config) 
+    player: Player;
+    config: Config;
+    editableLayer: number;
+    lastParser: Parser;
+    tracks: Track[];
+    duration: number;
+
+    constructor(player:Player, config:Config) 
     {
         this.player = player;
         this.config = config;
         this.editableLayer = 0;
     }
 
-    readFromParser(parser)
+    readFromParser(parser:Parser)
     {
         this.lastParser = parser;
         this.tracks = parser.getNotesCopy();
@@ -34,8 +53,8 @@ export default class Tracks
     }
 
     getDuration() { return this.duration; }
-    stretchDuration(factor) { this.setDuration(this.duration * factor); }
-    setDuration(d) { this.duration = d; this.onChange(); }
+    stretchDuration(factor:number) { this.setDuration(this.duration * factor); }
+    setDuration(d:number) { this.duration = d; this.onChange(); }
     setDurationFromMeasures(numMeasures)
     {
         const bounds = this.config.MEASURE_BOUNDS;
@@ -43,9 +62,9 @@ export default class Tracks
         this.setDuration(numMeasures * this.config.getSecondsPerMeasure());
     }
 
-    getUniquePitches()
+    getUniquePitches() : string[]
     {
-        let pitches = new Set();
+        let pitches : Set<string> = new Set();
         for(const track of this.tracks)
         {
             for(const note of track)
@@ -58,7 +77,7 @@ export default class Tracks
         return Array.from(pitches);
     }
 
-    getPitches(margin = 0, config)
+    getPitches(margin = 0, config:Config)
     {
         const allNotes = config.getAllNotes();
         const minSpread = this.config.MIN_PITCH_SPREAD;
@@ -97,14 +116,14 @@ export default class Tracks
     }
 
     
-    noteMatchesTimelineData(note, data)
+    noteMatchesTimelineData(note:Note, data:TimelineData)
     {
         if(note.getPitch() != data.getPitch()) { return false; }
         if(!note.containsTime(data.getTime())) { return false; }
         return true;
     }
 
-    findNoteAtTimelineData(data)
+    findNoteAtTimelineData(data:TimelineData)
     {
         for(const track of this.tracks)
         {
@@ -117,7 +136,7 @@ export default class Tracks
         return null;
     }
 
-    moveNoteTo(note, timelineData, side)
+    moveNoteTo(note:Note, timelineData:TimelineData, side:string)
     {
         note.setPitch(timelineData.getPitch());
 
@@ -134,20 +153,20 @@ export default class Tracks
         this.onChange();
     }
 
-    snapToTimeGrid(time)
+    snapToTimeGrid(time:number)
     {
         if(!this.config.shouldSnap()) { return time; }
         const subdiv = this.config.getSecondsPerBeat() / this.config.getGridResolution();
         return Math.round(time / subdiv) * subdiv;
     }
 
-    addNote(note)
+    addNote(note:Note)
     {
         this.tracks[this.editableLayer].push(note);
         this.onChange();
     }
 
-    removeNote(targetNode)
+    removeNote(targetNode:Note)
     {
         if(!targetNode) { return; }
         for(const track of this.tracks)
@@ -171,7 +190,7 @@ export default class Tracks
         this.player.requestRefresh();
     }
 
-    setEditableLayer(layerNum)
+    setEditableLayer(layerNum:number)
     {
         // the -1 is needed because arrays start at index 0; 
         // while the bounds are for "num layers" which starts at 1
@@ -194,21 +213,21 @@ export default class Tracks
         this.onChange();
     }
 
-    removeTrack(idx) 
+    removeTrack(idx:number) 
     { 
         idx = idx ?? (this.count() - 1);
         this.tracks.splice(idx, 1);
         this.onChange();
     }
 
-    sortTrack(track)
+    sortTrack(track:Track)
     {
         track.sort((a,b) => {
             return a.timeStart - b.timeStart;
         })
     }
 
-    stretchTempoByFactor(factor)
+    stretchTempoByFactor(factor:number)
     {
         const notes = this.readNotes();
         for(const note of notes)
@@ -241,9 +260,9 @@ export default class Tracks
         }
     }
 
-    getNotesThatStartPlaying(time)
+    getNotesThatStartPlaying(time:number) : NoteData[]
     {
-        const list = [];
+        const list : NoteData[] = [];
         for(const [id,track] of Object.entries(this.tracks))
         {
             for(const note of track)
@@ -252,8 +271,8 @@ export default class Tracks
                 if(note.getTimeStart() > time) { continue; }
                 if(note.getTimeEnd() < time) { continue; }
 
-                const noteData = {
-                    id: id,
+                const noteData : NoteData = {
+                    id: parseInt(id),
                     note: note
                 };
                 list.push(noteData);

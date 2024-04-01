@@ -1,5 +1,11 @@
 // VisualConfig => holds general data about the visual side (calculated once, passed around as needed)
-export default class VisualConfig {
+export default class VisualConfig 
+{
+    colorOffset: number;
+    font: { light: string; dark: string; size: number; family: string; };
+    pitch: { barLight: string; barDark: string; emptyPitchesAround: number; textMargin: number; shadowSize: number; shadowColor: string; verticalScale: number; };
+    time: { lineWidth: number; textMargin: number; cursorColor: string; cursorWidth: number; };
+    
     constructor(params)
     {
         this.colorOffset = Math.round(Math.random()*360);
@@ -37,7 +43,7 @@ export default class VisualConfig {
         Object.assign(this.time, params.time || {})
     }
     
-    getTrackColor(trackNum, change = 0, numTracks)
+    getTrackColor(trackNum:number, change = 0, numTracks:number)
     {
         const colorInterval = 360.0 / numTracks;
         const hue = (this.colorOffset + colorInterval * trackNum) % 360;

@@ -4,14 +4,30 @@ import VisualConfig from "./visualConfig"
 import Visualizer from "./visualizer"
 import Parser from "./parser"
 import Interactor from "./interactor"
-import Tracks from "./tracks"
+import Tracks, { NoteData } from "./tracks"
 import UI from "./ui"
 import Note from "./note"
 
 // (MIDI) Player => play/stop/progress
 export default class Player 
 {
-    constructor(id, node) 
+    id: number
+    node: HTMLElement
+    enabled: boolean
+    playing: boolean
+    audio: AudioBufferSourceNode[]
+    time: number
+    prevTime: number
+    lastContextTime: number
+    config: Config
+    parser: Parser
+    tracks: Tracks
+    visualConfig: VisualConfig
+    visualizer: Visualizer
+    interactor: Interactor
+    ui: UI
+
+    constructor(id:number, node:HTMLElement) 
     {
         this.id = id;
         this.node = node;
@@ -23,10 +39,12 @@ export default class Player
         this.prevTime = 0;
         this.lastContextTime = 0;
 
+        // @ts-ignore
         if(!PQ_MIDI.config) { PQ_MIDI.config = {} }
+        // @ts-ignore
         if(!PQ_MIDI.config.audio) { PQ_MIDI.config.audio = {}; }
 
-        const dataNode = this.node.getElementsByClassName("midi-data")[0];
+        const dataNode = this.node.getElementsByClassName("midi-data")[0] as HTMLElement;
         const midiData = dataNode.innerHTML.trim();
         const params = {
             pitchInput: dataNode.dataset.pitchinput,
@@ -36,6 +54,7 @@ export default class Player
             strict: dataNode.dataset.strict,
             transpose: parseInt(dataNode.dataset.transpose),
             metronome: dataNode.dataset.metronome,
+            // @ts-ignore
             metronomeVolume: PQ_MIDI.config.audio.metronomeVolume || 66
         }
                 
@@ -44,6 +63,7 @@ export default class Player
         this.tracks = new Tracks(this, this.config);
         this.tracks.readFromParser(this.parser);
 
+        // @ts-ignore
         this.visualConfig = new VisualConfig(PQ_MIDI.customConfig || {});
         this.visualizer = new Visualizer(this, this.config, this.visualConfig);
         this.interactor = new Interactor(this.tracks, this.visualizer);
@@ -131,7 +151,7 @@ export default class Player
     {
         this.requestRefresh();
 
-        const notesData = this.tracks.getNotesThatStartPlaying(this.time);
+        const notesData : NoteData[] = this.tracks.getNotesThatStartPlaying(this.time);
         for(const noteData of notesData)
         {
             const note = noteData.note;
@@ -145,7 +165,7 @@ export default class Player
         if(clickMetronome) { this.clickMetronome(); }
     }
     
-    playSound(id, note)
+    playSound(id:number, note:Note)
     {
         if(!note.useAudio) { return; }
         const source = AudioBuffer.playSound(id, note);        

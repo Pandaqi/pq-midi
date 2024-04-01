@@ -1,13 +1,17 @@
 export default class TimelineData
 {
-    constructor(time, pitch)
+    time: number;
+    timeOffset: number;
+    pitch: string;
+
+    constructor(time:number, pitch:string)
     {
         this.time = time;
         this.timeOffset = 0;
         this.pitch = pitch;
     }
 
-    setTimeOffset(to) { this.timeOffset = to; }
+    setTimeOffset(to:number) { this.timeOffset = to; }
     getTimeOffset() { return this.timeOffset; }
 
     getTime() { return this.time; }

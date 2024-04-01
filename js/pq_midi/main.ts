@@ -1,10 +1,11 @@
 import Player from "./player"
 
+// @ts-ignore
 window.PQ_MIDI = {};
 
 window.addEventListener('load', function () {
-    const players = [];
-    const midiPlayers = document.getElementsByClassName("midi-player");
+    const players : Player[] = [];
+    const midiPlayers = Array.from(document.getElementsByClassName("midi-player")) as HTMLElement[];
     for(let i = 0; i < midiPlayers.length; i++)
     {
         const midiPlayer = midiPlayers[i];

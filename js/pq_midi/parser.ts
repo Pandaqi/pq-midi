@@ -1,8 +1,15 @@
-import Note from "./note"
+import Config from "./config";
+import Note from "./note";
+import { Track } from "./tracks";
 
 // (MIDI) Parser => given a string from the Markdown, turn it into tracks, pitches, duration, etc.
-export default class Parser {
-    constructor(midiData, config)
+export default class Parser 
+{
+    tracksParsed: Track[];
+    duration: number;
+    feedback: string[];
+
+    constructor(midiData:string, config:Config)
     {
         this.tracksParsed = [];
         this.duration = 0;
@@ -10,7 +17,7 @@ export default class Parser {
         this.parse(midiData, config);
     }
 
-    parse(midiData, config)
+    parse(midiData:string, config:Config)
     {
         this.tracksParsed = [];
 
@@ -25,7 +32,7 @@ export default class Parser {
             if(invalidTrack) { continue; }
 
             let runningTime = 0;
-            let trackParsed = [];
+            let trackParsed : Track = [];
 
             const notes = track.split(" ");
             const invalidNotes = (notes.length <= 0);
@@ -86,12 +93,13 @@ export default class Parser {
     }
 
     getFeedback() { return this.feedback; }
-    addFeedback(txt)
+    addFeedback(txt:string)
     {
         this.feedback.push(txt);
     }
 
-    getNotesCopy() {
+    getNotesCopy() 
+    {
         const tracksCopy = [];
         for(const track of this.tracksParsed)
         {

@@ -1,12 +1,36 @@
+import Config from "./config";
+import Player from "./player";
+
+interface UIParams
+{
+    node?: HTMLElement,
+    text?: string,
+    title?: string,
+    value?: any,
+    callback?: Function,
+    min?: number,
+    max?: number,
+    suffix?: string
+    type?: string,
+    fakeEvent?: boolean
+}
+
 export default class UI
 {
-    constructor(player, config)
+    player: Player;
+    node: HTMLDivElement;
+    playButton: HTMLButtonElement;
+    clearButton: HTMLButtonElement;
+    resetButton: HTMLButtonElement;
+    feedbackLabel: HTMLDivElement;
+    
+    constructor(player:Player, config:Config)
     {
         this.player = player;
         this.createHTML(config);
     }
 
-    createHTML(config)
+    createHTML(config:Config)
     {
         const cont = document.createElement("div");
         this.player.getContainer().appendChild(cont);
@@ -42,7 +66,7 @@ export default class UI
         this.resetButton = resetBtn;
 
         // On/Off toggles for helpful tools
-        let params = {
+        let params : UIParams = {
             node: buttons,
             text: "Loop?",
             title: "If enabled, loops the audio: when done, it immediately plays again from the start.",
@@ -150,48 +174,48 @@ export default class UI
         this.feedbackLabel = fb;
     }
 
-    setFeedback(text)
+    setFeedback(text:string|string[])
     {
+        if(Array.isArray(text)) { text = text.join(" | "); }
         this.feedbackLabel.innerHTML = text;
     }
 
-    addInputLabel(params)
+    addInputLabel(params:UIParams)
     {
-        const parent = params.node || this.node;
+        const parent = params.node ?? this.node;
         const cont = document.createElement("div");
         cont.classList.add("midi-input-with-label");
         parent.appendChild(cont);
 
-        const title = params.title || "";
+        const title = params.title ?? "";
         cont.title = title;
 
         let span = document.createElement("span");
         cont.appendChild(span);
-        span.innerHTML = params.text || "--";
+        span.innerHTML = params.text ?? "--";
         
         let inp = document.createElement("input");
         cont.appendChild(inp);
 
-        inp.type = params.type || "number";
-        inp.min = params.min || 0;
-        inp.max = params.max || 100;
+        inp.type = params.type ?? "number";
+        inp.min = (params.min ?? 0).toString();
+        inp.max = (params.max ?? 100).toString();
         
-        const avgVal = (inp.min + inp.max)*0.5;
-        inp.value = params.value || avgVal;
+        const avgVal = (parseFloat(inp.min) + parseFloat(inp.max))*0.5;
+        inp.value = params.value ?? avgVal;
 
         if(params.suffix)
         {
-            let spanSuffix = document.createElement("span");
+            const spanSuffix = document.createElement("span");
             cont.appendChild(spanSuffix);
-            spanSuffix.innerHMTL = params.suffix;
+            spanSuffix.innerHTML = params.suffix;
         }
 
         const defaultCallback = (val) => {};
-        const callback = params.callback || defaultCallback;
+        const callback = params.callback ?? defaultCallback;
 
         inp.addEventListener("input", (ev) => {
-            let val = inp.value;
-            if(inp.type == "number") { val = parseFloat(val); }
+            const val = inp.type == "number" ? parseFloat(inp.value) : inp.value;
             callback(val, inp);
         });
 
@@ -203,31 +227,31 @@ export default class UI
         this.playButton.addEventListener("click", cb);
     }
 
-    fakeChangeInput(inp)
+    fakeChangeInput(inp:HTMLElement)
     {
         const fakeEvent = new Event("input");
         inp.dispatchEvent(fakeEvent);
     }
 
-    fakeToggleButton(btn)
+    fakeToggleButton(btn:HTMLButtonElement)
     {
         const fakeEvent = new Event("click");
         btn.dispatchEvent(fakeEvent);
     }
 
-    createToggleButton(params)
+    createToggleButton(params:UIParams)
     {
         const btn = document.createElement("button");
-        btn.innerHTML = params.text || "ON/OFF";
+        btn.innerHTML = params.text ?? "ON/OFF";
 
-        const parent = params.node || this.node;
+        const parent = params.node ?? this.node;
         parent.appendChild(btn);
 
-        const title = params.title || "";
+        const title = params.title ?? "";
         btn.title = title;
 
         const defaultCallback = (isOn) => {};
-        const callback = params.callback || defaultCallback;
+        const callback = params.callback ?? defaultCallback;
 
         btn.addEventListener("click", (ev) => {
             if(btn.dataset.toggled) {
@@ -240,7 +264,7 @@ export default class UI
             callback(isOn);
         });
 
-        const defaultValue = params.value || false;
+        const defaultValue = params.value ?? false;
         this.fakeToggleButton(btn);
         if(!defaultValue) { this.fakeToggleButton(btn); }
     }

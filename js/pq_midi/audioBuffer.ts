@@ -1,4 +1,9 @@
-const AudioLoader = class {
+const AudioLoader = class 
+{
+    ctx: AudioContext;
+    audioBuffer: Record<string,AudioBuffer>; 
+    gainNodes: GainNode[];
+
     constructor()
     {
         this.ctx = null;
@@ -11,9 +16,11 @@ const AudioLoader = class {
     {
         let basePath = "/tutorials/midi/audio";
 
+        // @ts-ignore
         let useCustomPath = (PQ_MIDI.config && PQ_MIDI.config.audio && PQ_MIDI.config.audio.path)
         if(!useCustomPath) { return basePath; }
         
+        // @ts-ignore
         basePath = PQ_MIDI.config.audio.path;
         if(basePath.charAt(basePath.length-1) == "/") { basePath.slice(0, -1); }
         return basePath;
@@ -21,12 +28,13 @@ const AudioLoader = class {
 
     setupContext()
     {
+        // @ts-ignore
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         this.ctx = new AudioContext();
 
         // To ensure audio suspends when you switch away
         // (and it matches the requestAnimatioFrame that does the same)
-        document.addEventListener("visibilitychange", event => {
+        document.addEventListener("visibilitychange", (ev) => {
             if (document.visibilityState === "visible") {
                 this.ctx.resume();
             } else {
@@ -40,17 +48,17 @@ const AudioLoader = class {
         return this.ctx;
     }
 
-    getAudioForPitch(pitch)
+    getAudioForPitch(pitch:string)
     {
         return this.audioBuffer[pitch];
     }
 
-    hasResource(pitch)
+    hasResource(pitch:string)
     {
         return (pitch in this.audioBuffer);
     }
 
-    checkAndLoadResources(pitches)
+    checkAndLoadResources(pitches:string[])
     {
         let promises = [];
         for(const pitch of pitches)
@@ -73,7 +81,7 @@ const AudioLoader = class {
         return Promise.all(promises);
     }
 
-    loadResource(pitch)
+    loadResource(pitch:string)
     {
         const urlPitch = pitch.replace("#", "p");
         const file = this.getFilePath()  + "/" + urlPitch + ".ogg";
@@ -86,23 +94,23 @@ const AudioLoader = class {
         return new Promise((resolve, reject) => {
             xhr.onload = function()
             {
-                let notFound = this.response.byteLength <= 24;
+                const notFound = this.response.byteLength <= 24;
                 if(notFound) { return; }
     
                 that.getContext().decodeAudioData(
                     this.response, 
-                    function (b) { that.audioBuffer[pitch] = b; resolve(true); }, 
-                    function (e) { console.warn(e); reject(false); }
+                    (b) => { that.audioBuffer[pitch] = b; resolve(true); }, 
+                    (e) => { console.warn(e); reject(false); }
                 );
             }
-            xhr.onerror = function () { reject(false); };   
+            xhr.onerror = () => { reject(false); };   
             xhr.send(); 
         });
     }
 
-    getGainNodeWithCreate(id)
+    getGainNodeWithCreate(id:number) : GainNode
     {
-        if(id < 0) { return console.error("Can't play sound at track ", id); }
+        if(id < 0) { console.error("Can't play sound at track ", id); return; }
         if(id < this.gainNodes.length) { return this.gainNodes[id]; }
 
         while(this.gainNodes.length <= id)
@@ -115,7 +123,7 @@ const AudioLoader = class {
         return this.gainNodes[id];
     }
 
-    playSound(id, note)
+    playSound(id:number, note) : AudioBufferSourceNode
     {
         if (this.ctx.state === "suspended") { this.ctx.resume(); }
 

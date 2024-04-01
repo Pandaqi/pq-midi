@@ -1,5 +1,40 @@
+import { Track } from "./tracks";
+
 // Config => holds general data about the audio (calculated once, passed around as needed)
-export default class Config {
+interface Bounds
+{
+    min: number,
+    max: number
+}
+
+interface BoundsString
+{
+    min: string,
+    max: string
+}
+
+export default class Config 
+{
+    pitchInput: string;
+    timeInput: string;
+    tempoBPM: number;
+    timeSignature: string;
+    strict: boolean;
+    transpose: number;
+    metronome: boolean;
+    metronomeVolume: number;
+    loop: boolean;
+    snapToGrid: boolean;
+    gridResolution: number;
+    MEASURE_BOUNDS: Bounds;
+    BPM_BOUNDS: Bounds;
+    MIN_PITCH_SPREAD: number;
+    GRID_RESOLUTION_BOUNDS: Bounds;
+    AUDIO_BOUNDS: BoundsString;
+    NUM_TRACKS_BOUNDS: Bounds;
+    allNotes: any[];
+    allNotesAudio: any;
+
     constructor(params = {})
     {
         this.pitchInput = "absolute";
@@ -57,7 +92,7 @@ export default class Config {
     getAllNotesWithAvailableAudio() { return this.allNotesAudio; }
     getAllNotes() { return this.allNotes; }
 
-    clampPitchToAvailableAudio(pitch)
+    clampPitchToAvailableAudio(pitch:string)
     {
         if(this.getAllNotesWithAvailableAudio().includes(pitch)) { return pitch; }
         
@@ -67,17 +102,17 @@ export default class Config {
         return this.AUDIO_BOUNDS.max;
     }
 
-    clampNote(noteIndex)
+    clampNote(noteIndex:number)
     {
         return Math.max(Math.min(noteIndex, this.allNotes.length - 1), 0);
     }
 
-    getNoteIndex(pitch)
+    getNoteIndex(pitch:string)
     {
         return this.allNotes.indexOf(pitch);
     }
 
-    convertPitchInput(pitch, prevPitch)
+    convertPitchInput(pitch:string, prevPitch:string)
     {
         const idx = this.getNoteIndex(pitch);
         let nonPitch = (idx == -1);
@@ -103,7 +138,7 @@ export default class Config {
         }
     }
 
-    convertTimeInput(time, prevTime)
+    convertTimeInput(time:string, prevTime:string)
     {
         let inputType = this.timeInput;
         if(prevTime == null && inputType == "relative") { inputType = "absolute"; }
@@ -113,6 +148,7 @@ export default class Config {
             if(time.length <= 0) { time = "1"; } 
             return parseInt(time) * this.getSecondsPerBeat(); 
         }
+
         if(inputType == "relative")
         {
             if(time.length <= 0) { time = "^0"; }
@@ -120,12 +156,14 @@ export default class Config {
             let prevBeats = parseFloat(prevTime) / this.getSecondsPerBeat();
             let goHigher = time[0] == "^";
             let goLower = time[0] == "_";
-            if(goHigher) { time = prevBeats + parseInt(time.substring(1)); }
-            if(goLower) { time = prevBeats - parseInt(time.substring(1)); }
+            let finalTime = parseFloat(time);
+            if(goHigher) { finalTime = prevBeats + parseInt(time.substring(1)); }
+            if(goLower) { finalTime = prevBeats - parseInt(time.substring(1)); }
 
-            time = Math.min(Math.max(parseInt(time), 1), 32);
-            return time * this.getSecondsPerBeat();
+            finalTime = Math.min(Math.max(finalTime, 1), 32);
+            return finalTime * this.getSecondsPerBeat();
         }
+
         if(inputType == "traditional")
         {
             if(time.length <= 0) { time = "4"; }
@@ -142,7 +180,7 @@ export default class Config {
         }
     }
 
-    isValidTimeSignature(val)
+    isValidTimeSignature(val:string)
     {
         const split = val.split("/");
         if(split.length != 2) { return false; }
@@ -157,7 +195,7 @@ export default class Config {
     }
 
     getTimeSignature() { return this.timeSignature; }
-    setTimeSignature(val)
+    setTimeSignature(val:string)
     {
         if(!this.isValidTimeSignature(val)) { return null; }
         const changeData = null;
@@ -174,7 +212,7 @@ export default class Config {
     }
 
     getTempoBPM() { return this.tempoBPM; }
-    setTempoBPM(val)
+    setTempoBPM(val:number)
     {
         if(isNaN(val)) { return; }
         const valClamped = Math.max(Math.min(val, this.BPM_BOUNDS.max), this.BPM_BOUNDS.min);
@@ -214,21 +252,21 @@ export default class Config {
         return parseInt(this.timeSignature.split("/")[1]);
     }
 
-    isStartOfMeasure(time)
+    isStartOfMeasure(time:number)
     {
         const fullNoteFactor = time / this.getSecondsPerMeasure();
         const isMultiple = Math.abs(Math.round(fullNoteFactor) - fullNoteFactor) <= 0.075;
         return isMultiple;
     }
 
-    isMeasureCorrect(isMeasure = false, time)
+    isMeasureCorrect(isMeasure = false, time:number)
     {
         if(!isMeasure) { return true; }
         if(!this.strict) { return true; }
         return this.isStartOfMeasure(time);
     }
 
-    areTracksAligned(tracks)
+    areTracksAligned(tracks:Track[])
     {
         if(!this.strict) { return true; }
 
@@ -243,25 +281,25 @@ export default class Config {
     }
 
     shouldLoop() { return this.loop; }
-    setLoop(l)
+    setLoop(l:boolean)
     {
         this.loop = l;
     }
 
     shouldSnap() { return this.snapToGrid; }
-    setSnap(s)
+    setSnap(s:boolean)
     {
         this.snapToGrid = s;
     }
 
     useMetronome() { return this.metronome; }
-    setMetronome(m)
+    setMetronome(m:boolean)
     {
         this.metronome = m;
     }
 
     getGridResolution() { return this.gridResolution; }
-    setGridResolution(val) 
+    setGridResolution(val:number) 
     { 
         const bounds = this.GRID_RESOLUTION_BOUNDS;
         this.gridResolution = Math.min(Math.max(val, bounds.min), bounds.max);
